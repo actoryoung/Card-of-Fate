@@ -1,0 +1,102 @@
+[
+  {
+    "id": "attack_basic",
+    "name": "基础攻击",
+    "type": "attack",
+    "cost": 1,
+    "description": "造成 6 点伤害",
+    "effect": { "type": "damage", "value": 6 },
+    "rarity": "common",
+    "icon": "⚔️"
+  },
+  {
+    "id": "attack_heavy",
+    "name": "重击",
+    "type": "attack",
+    "cost": 2,
+    "description": "造成 15 点伤害",
+    "effect": { "type": "damage", "value": 15 },
+    "rarity": "common",
+    "icon": "💥"
+  },
+  {
+    "id": "attack_double",
+    "name": "连斩",
+    "type": "attack",
+    "cost": 1,
+    "description": "造成 4 点伤害两次",
+    "effect": { "type": "damage_multi", "value": 4, "count": 2 },
+    "rarity": "rare",
+    "icon": "⚡"
+  },
+  {
+    "id": "defend_basic",
+    "name": "铁壁",
+    "type": "defense",
+    "cost": 1,
+    "description": "获得 8 点护甲",
+    "effect": { "type": "armor", "value": 8 },
+    "rarity": "common",
+    "icon": "🛡️"
+  },
+  {
+    "id": "defend_strong",
+    "name": "坚盾",
+    "type": "defense",
+    "cost": 2,
+    "description": "获得 15 点护甲",
+    "effect": { "type": "armor", "value": 15 },
+    "rarity": "rare",
+    "icon": "🛡️"
+  },
+  {
+    "id": "skill_draw",
+    "name": "战术思考",
+    "type": "skill",
+    "cost": 0,
+    "description": "抽 2 张牌",
+    "effect": { "type": "draw", "value": 2 },
+    "rarity": "common",
+    "icon": "🎴"
+  },
+  {
+    "id": "skill_energy",
+    "name": "集中",
+    "type": "skill",
+    "cost": 1,
+    "description": "获得 1 点能量",
+    "effect": { "type": "energy", "value": 1 },
+    "rarity": "common",
+    "icon": "✨"
+  },
+  {
+    "id": "skill_vulnerable",
+    "name": "弱点打击",
+    "type": "skill",
+    "cost": 0,
+    "description": "敌人获得易伤",
+    "effect": { "type": "vulnerable", "value": 1 },
+    "rarity": "common",
+    "icon": "🎯"
+  },
+  {
+    "id": "attack_powerful",
+    "name": "强力打击",
+    "type": "attack",
+    "cost": 3,
+    "description": "造成 25 点伤害",
+    "effect": { "type": "damage", "value": 25 },
+    "rarity": "epic",
+    "icon": "💪"
+  },
+  {
+    "id": "skill_tempo",
+    "name": "战斗节奏",
+    "type": "skill",
+    "cost": 1,
+    "description": "抽 1 张牌，获得 1 点能量",
+    "effect": { "type": "draw_energy", "value": 1 },
+    "rarity": "rare",
+    "icon": "🔄"
+  }
+]

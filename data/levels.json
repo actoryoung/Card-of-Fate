@@ -1,0 +1,99 @@
+{
+  "chapters": [
+    {
+      "id": "chapter_1",
+      "name": "新手教程",
+      "description": "学习基本的卡牌战斗技巧",
+      "levels": [
+        {
+          "id": "level_1_1",
+          "name": "初次战斗",
+          "type": "normal",
+          "enemies": ["goblin_minion"],
+          "rewards": { "gold": 5, "cards": 1 },
+          "tutorial": "点击卡牌，然后点击敌人进行攻击"
+        },
+        {
+          "id": "level_1_2",
+          "name": "防御练习",
+          "type": "normal",
+          "enemies": ["goblin_minion", "goblin_minion"],
+          "rewards": { "gold": 10, "cards": 1 },
+          "tutorial": "使用防御卡可以减少受到的伤害"
+        },
+        {
+          "id": "level_1_3",
+          "name": "首个挑战",
+          "type": "boss",
+          "enemies": ["goblin_warrior"],
+          "rewards": { "gold": 20, "cards": 2 },
+          "tutorial": "击败这个强力敌人以完成第一章"
+        }
+      ]
+    },
+    {
+      "id": "chapter_2",
+      "name": "森林遗迹",
+      "description": "深入森林，面对更强大的敌人",
+      "levels": [
+        {
+          "id": "level_2_1",
+          "name": "森林外围",
+          "type": "normal",
+          "enemies": ["goblin_minion", "goblin_warrior"],
+          "rewards": { "gold": 15, "cards": 1 }
+        },
+        {
+          "id": "level_2_2",
+          "name": "精英守卫",
+          "type": "elite",
+          "enemies": ["forest_guardian"],
+          "rewards": { "gold": 40, "cards": 2, "relic": true }
+        },
+        {
+          "id": "level_2_3",
+          "name": "休息点",
+          "type": "rest",
+          "options": ["heal", "remove_card", "upgrade_card"]
+        },
+        {
+          "id": "level_2_4",
+          "name": "黑暗法师",
+          "type": "normal",
+          "enemies": ["dark_mage"],
+          "rewards": { "gold": 30, "cards": 2 }
+        },
+        {
+          "id": "level_2_5",
+          "name": "森林之王",
+          "type": "boss",
+          "enemies": ["boss_forest_king"],
+          "rewards": { "gold": 100, "cards": 3, "relic": true },
+          "nextChapter": "chapter_3"
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "mysterious_shrine",
+      "name": "神秘神殿",
+      "description": "你发现一座古老的神殿",
+      "choices": [
+        { "text": "祈祷（回复15点生命）", "effect": "heal_15" },
+        { "text": "献祭（失去10点生命，获得稀有卡）", "effect": "sacrifice_card" },
+        { "text": "离开", "effect": "nothing" }
+      ]
+    },
+    {
+      "id": "wandering_merchant",
+      "name": "流浪商人",
+      "description": "一个神秘的商人愿意与你交易",
+      "choices": [
+        { "text": "购买卡牌（30金币）", "effect": "buy_card", "cost": 30 },
+        { "text": "出售卡牌（获得15金币）", "effect": "sell_card" },
+        { "text": "继续前进", "effect": "nothing" }
+      ]
+    }
+  ]
+}

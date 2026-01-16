@@ -1,0 +1,83 @@
+# Code Review Workflow
+# 代码审查工作流
+
+name: Code Review
+description: 系统化的代码审查流程
+
+steps:
+  - name: "1. 获取变更上下文"
+    actions:
+      - 获取 PR 信息
+      - 查看变更文件列表
+      - 了解变更目的
+    inputs:
+      - pr_number
+      - target_branch
+
+  - name: "2. 自动检查"
+    command: bash
+    actions:
+      - 运行 linter
+      - 运行类型检查
+      - 运行测试
+      - 检查覆盖率
+
+  - name: "3. 代码审查"
+    agent: code-reviewer
+    review_dimensions:
+      - dimension: "正确性"
+        weight: high
+        checks:
+          - 逻辑是否正确
+          - 边界条件处理
+          - 错误处理完善
+
+      - dimension: "安全性"
+        weight: high
+        checks:
+          - 输入验证
+          - 权限检查
+          - 敏感数据处理
+
+      - dimension: "可维护性"
+        weight: medium
+        checks:
+          - 命名清晰
+          - 代码组织
+          - 注释充分
+
+      - dimension: "性能"
+        weight: medium
+        checks:
+          - 算法复杂度
+          - 资源使用
+          - 潜在瓶颈
+
+      - dimension: "测试"
+        weight: medium
+        checks:
+          - 覆盖充分
+          - 断言有效
+          - 边界覆盖
+
+  - name: "4. 生成审查报告"
+    output: review-report.md
+    format:
+      - 整体评价
+      - 关键问题（必须修复）
+      - 改进建议（建议修复）
+      - 亮点（值得保持）
+      - 测试建议
+
+  - name: "5. 提供反馈"
+    actions:
+      - 在 PR 中添加评论
+      - 标注问题代码行
+      - 提供修复建议
+
+review_outcomes:
+  - "APPROVE": 可以合并
+  - "REQUEST_CHANGES": 需要修改后重新审查
+  - "COMMENT": 仅提供建议，不阻止合并
+
+timebox: "30分钟以内完成初步审查"

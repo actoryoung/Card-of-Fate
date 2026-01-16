@@ -1,0 +1,65 @@
+{
+  "enemies": [
+    {
+      "id": "goblin_minion",
+      "name": "哥布林小兵",
+      "hp": 20,
+      "attacks": [
+        { "type": "damage", "value": 6, "intent": "准备攻击" },
+        { "type": "damage", "value": 8, "intent": "重击" }
+      ],
+      "rewards": { "gold": 10, "cards": 1 },
+      "icon": "👺"
+    },
+    {
+      "id": "goblin_warrior",
+      "name": "哥布林战士",
+      "hp": 35,
+      "attacks": [
+        { "type": "damage", "value": 10, "intent": "猛击" },
+        { "type": "armor", "value": 8, "intent": "防御" },
+        { "type": "damage", "value": 14, "intent": "致命一击" }
+      ],
+      "rewards": { "gold": 15, "cards": 1 },
+      "icon": "⚔️"
+    },
+    {
+      "id": "forest_guardian",
+      "name": "森林守卫",
+      "hp": 50,
+      "attacks": [
+        { "type": "damage", "value": 8, "intent": "藤鞭抽击" },
+        { "type": "armor", "value": 12, "intent": "树皮护甲" },
+        { "type": "heal", "value": 8, "intent": "自然治愈" }
+      ],
+      "rewards": { "gold": 25, "cards": 2 },
+      "icon": "🌳"
+    },
+    {
+      "id": "dark_mage",
+      "name": "黑暗法师",
+      "hp": 40,
+      "attacks": [
+        { "type": "damage", "value": 6, "intent": "暗影箭" },
+        { "type": "apply_weak", "duration": 2, "intent": "虚弱诅咒" },
+        { "type": "damage_multi", "value": 4, "count": 3, "intent": "连发" }
+      ],
+      "rewards": { "gold": 30, "cards": 2 },
+      "icon": "🧙"
+    },
+    {
+      "id": "boss_forest_king",
+      "name": "森林之王",
+      "hp": 100,
+      "attacks": [
+        { "type": "damage", "value": 12, "intent": "重践踏" },
+        { "type": "armor", "value": 15, "intent": "荆棘护甲" },
+        { "type": "damage_all", "value": 8, "intent": "自然之怒" },
+        { "type": "heal", "value": 15, "intent": "生命汲取" }
+      ],
+      "rewards": { "gold": 100, "cards": 3, "relic": true },
+      "icon": "👑",
+      "isBoss": true
+    }
+  ]
+}

@@ -1,0 +1,217 @@
+# Feature Development Workflow
+# 新功能开发工作流
+
+name: Feature Development
+description: 从需求分析到部署的完整功能开发流程
+
+# 主控代理：orchestrator
+orchestrator:
+  role: 任务分解与协调
+  responsibilities:
+    - 分析需求，判断复杂度
+    - 分配任务给子代理
+    - 整合子代理结果
+    - 跟踪执行进度
+    - 执行验证闭环
+    - 管理检查点和回退
+
+# 检查点定义
+checkpoints:
+  - name: "exploration_done"
+    after_step: 1
+    snapshot:
+      - 相关文件列表
+      - 代码结构理解
+      - 依赖关系图
+  - name: "plan_approved"
+    after_step: 2
+    snapshot:
+      - implementation-plan.md
+      - 技术方案
+      - 风险评估
+  - name: "tests_defined"
+    after_step: "3.1"
+    snapshot:
+      - 测试文件列表
+      - 测试用例定义
+      - 当前测试状态（应失败）
+  - name: "tests_passing"
+    after_step: "3.2"
+    snapshot:
+      - 测试结果
+      - 实现文件列表
+      - 构建状态
+  - name: "review_done"
+    after_step: 4
+    snapshot:
+      - review-report.md
+      - 已修复问题列表
+
+steps:
+  - name: "1. 需求分析与代码探索"
+    mode: explore
+    agent: Explore
+    actions:
+      - 查找相关文件和模块
+      - 理解现有代码结构
+      - 识别依赖关系
+      - 评估影响范围
+
+  - name: "2. 架构设计"
+    mode: plan
+    agent: Plan
+    actions:
+      - 设计实现方案
+      - 列出关键文件和变更
+      - 识别技术权衡
+      - 评估潜在风险
+    output: implementation-plan.md
+    checkpoint_after: plan_approved
+    verification:
+      - 方案可执行
+      - 风险已识别
+      - 技术选型合理
+
+  - name: "3. TDD 开发循环"
+    mode: implement
+    parallel: false
+    substeps:
+      - name: "3.1 编写测试"
+        skill: /test
+        actions:
+          - RED: 编写失败测试
+          - 定义接口和行为
+        checkpoint_after: tests_defined
+        verification:
+          - 测试文件已创建
+          - 测试运行失败（符合预期）
+          - 测试覆盖核心场景
+
+      - name: "3.2 实现功能"
+        agent: code-writer
+        actions:
+          - GREEN: 实现最少代码
+          - 确保测试通过
+        checkpoint_after: tests_passing
+        verification:
+          - 所有测试通过
+          - 构建成功
+          - 无新增警告
+
+      - name: "3.3 重构优化"
+        agent: refactor-agent
+        actions:
+          - REFACTOR: 优化代码结构
+          - 保持测试通过
+        verification:
+          - 测试仍然通过
+          - 代码质量改善
+    loop: true
+    until:
+      - 所有功能测试通过
+      - 代码符合项目规范
+
+  - name: "4. 代码审查"
+    mode: review
+    skill: /review-pr
+    actions:
+      - 检查代码质量
+      - 验证安全性
+      - 评估可维护性
+      - 提供改进建议
+    output: review-report.md
+    checkpoint_after: review_done
+    verification:
+      - 审查报告已生成
+      - 关键问题已处理
+      - 安全问题已修复
+
+  - name: "5. 集成验证"
+    mode: verify
+    skill: /test
+    actions:
+      - 运行完整测试套件
+      - 验证 API 兼容性
+      - 检查性能影响
+      - 确认无回归问题
+    verification:
+      - 所有测试通过
+      - 无回归问题
+      - 性能可接受
+
+  - name: "6. 文档更新"
+    executor: orchestrator
+    actions:
+      - 更新 CLAUDE.md 项目结构
+      - 添加/更新 API 文档
+      - 更新 CHANGELOG
+
+  - name: "7. 提交代码"
+    skill: /commit
+    actions:
+      - 暂存变更文件
+      - 生成符合规范的提交信息
+      - 创建 Git 提交
+
+# 可选：创建 PR
+optional_steps:
+  - name: "8. 创建 Pull Request"
+    executor: orchestrator
+    actions:
+      - 生成 PR 描述
+      - 关联相关 Issue
+      - 添加审查者
+
+exit_conditions:
+  - 所有功能测试通过
+  - 代码审查无关键问题
+  - 文档已更新
+  - CI 检查通过（如有）
+
+rollback_actions:
+  - 回滚最后一次提交
+  - 恢复到开发前状态
+  - 清理临时文件
+
+# 代理调度策略
+scheduling_strategy:
+  explore_and_plan: sequential  # 探索和设计串行
+  test_and_implement: loop      # 测试和实现循环
+  independent_tasks: parallel   # 独立任务并行
+
+# 错误处理策略
+error_handling:
+  step_1_exploration:
+    on_failure: L2
+    retry: 1
+    fallback: "询问用户相关文件位置"
+
+  step_2_plan:
+    on_failure: L3
+    checkpoint: exploration_done
+    fallback: "请求用户提供更多需求细节"
+
+  step_3_tdd_loop:
+    substep_3_1_tests:
+      on_failure: L2
+      retry: 2
+      fallback: "简化测试用例"
+    substep_3_2_implement:
+      on_failure: L2
+      retry: 2
+      checkpoint: tests_defined
+      fallback: "回退到测试定义，重新检查需求"
+    substep_3_3_refactor:
+      on_failure: L1
+      retry: 0
+      fallback: "跳过重构，保持当前实现"
+
+  step_4_review:
+    on_failure: L2
+    retry: 1
+    fallback: "标记问题，继续执行，由用户决定"
+
+  step_5_integration:
+    on_failure: L3
+    checkpoint: tests_passing
+    fallback: "回退到 tests_passing，修复回归问题"

@@ -1,0 +1,104 @@
+{
+  "cards": [
+    {
+      "id": "attack_basic",
+      "name": "基础攻击",
+      "type": "attack",
+      "cost": 1,
+      "description": "造成 6 点伤害",
+      "effect": { "type": "damage", "value": 6 },
+      "rarity": "common",
+      "icon": "⚔️",
+      "upgrade": { "damage": 3 }
+    },
+    {
+      "id": "attack_heavy",
+      "name": "重击",
+      "type": "attack",
+      "cost": 2,
+      "description": "造成 15 点伤害",
+      "effect": { "type": "damage", "value": 15 },
+      "rarity": "common",
+      "icon": "💥",
+      "upgrade": { "damage": 5 }
+    },
+    {
+      "id": "attack_double",
+      "name": "连斩",
+      "type": "attack",
+      "cost": 1,
+      "description": "造成 4 点伤害两次",
+      "effect": { "type": "damage_multi", "value": 4, "count": 2 },
+      "rarity": "rare",
+      "icon": "⚡",
+      "upgrade": { "value": 5 }
+    },
+    {
+      "id": "defend_basic",
+      "name": "铁壁",
+      "type": "defense",
+      "cost": 1,
+      "description": "获得 8 点护甲",
+      "effect": { "type": "armor", "value": 8 },
+      "rarity": "common",
+      "icon": "🛡️",
+      "upgrade": { "value": 4 }
+    },
+    {
+      "id": "skill_draw",
+      "name": "战术思考",
+      "type": "skill",
+      "cost": 1,
+      "description": "抽 2 张牌",
+      "effect": { "type": "draw", "value": 2 },
+      "rarity": "common",
+      "icon": "📜",
+      "upgrade": { "value": 3 }
+    },
+    {
+      "id": "skill_energy",
+      "name": "能量涌动",
+      "type": "skill",
+      "cost": 0,
+      "description": "获得 2 点能量",
+      "effect": { "type": "energy", "value": 2 },
+      "rarity": "rare",
+      "icon": "⚡",
+      "upgrade": { "value": 3 }
+    },
+    {
+      "id": "status_poison",
+      "name": "毒刃",
+      "type": "status",
+      "cost": 1,
+      "description": "造成 3 点伤害，施加 3 层中毒",
+      "effect": { "type": "damage_and_poison", "damage": 3, "poison": 3 },
+      "rarity": "common",
+      "icon": "☠️",
+      "upgrade": { "poison": 2 }
+    },
+    {
+      "id": "status_weak",
+      "name": "恐吓",
+      "type": "status",
+      "cost": 1,
+      "description": "敌人下回合攻击力减半",
+      "effect": { "type": "apply_weak", "duration": 2 },
+      "rarity": "rare",
+      "icon": "😨",
+      "upgrade": { "duration": 1 }
+    }
+  ],
+  "starterDeck": [
+    "attack_basic",
+    "attack_basic",
+    "attack_basic",
+    "attack_heavy",
+    "defend_basic",
+    "defend_basic",
+    "defend_basic",
+    "defend_basic",
+    "skill_draw",
+    "skill_draw"
+  ]
+}

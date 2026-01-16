@@ -1,0 +1,239 @@
+# Bug Fix Workflow
+# Bug 修复工作流
+
+name: Bug Fix
+description: 系统化的 Bug 诊断和修复流程
+
+# 主控代理：orchestrator
+orchestrator:
+  role: 协调 Bug 修复流程
+  responsibilities:
+    - 收集问题信息
+    - 调度子代理诊断
+    - 验证修复效果
+    - 确保无回归
+    - 执行验证闭环
+    - 管理检查点和回退
+
+# 检查点定义
+checkpoints:
+  - name: "problem_collected"
+    after_step: 1
+    snapshot:
+      - 错误信息
+      - 复现步骤
+      - 环境信息
+  - name: "affected_found"
+    after_step: 2
+    snapshot:
+      - affected-files.md
+      - 可疑代码路径
+  - name: "root_cause_identified"
+    after_step: 3
+    snapshot:
+      - root-cause-analysis.md
+      - 问题假设
+      - 验证结果
+  - name: "regression_test_written"
+    after_step: 4
+    snapshot:
+      - 测试文件
+      - 测试失败结果（确认可复现）
+  - name: "fix_verified"
+    after_step: 6
+    snapshot:
+      - 修复后的测试结果
+      - 完整测试套件结果
+
+steps:
+  - name: "1. 问题收集"
+    mode: collect
+    executor: orchestrator
+    actions:
+      - 收集错误信息和堆栈
+      - 获取复现步骤
+      - 记录环境信息
+    inputs:
+      - error_message: "错误信息"
+      - reproduction_steps: "复现步骤"
+      - environment_info: "环境信息"
+    checkpoint_after: problem_collected
+    verification:
+      - 错误信息完整
+      - 复现步骤清晰
+      - 环境信息充分
+
+  - name: "2. 代码探索与定位"
+    mode: explore
+    agent: Explore
+    actions:
+      - 搜索相关代码
+      - 查找错误发生位置
+      - 理解相关模块
+      - 识别可疑代码路径
+    output: affected-files.md
+    checkpoint_after: affected_found
+    verification:
+      - 找到相关代码
+      - 定位错误位置
+      - 代码路径清晰
+
+  - name: "3. 根因分析"
+    mode: analyze
+    parallel: false
+    substeps:
+      - name: "3.1 堆栈分析"
+        executor: orchestrator
+        actions:
+          - 分析错误堆栈
+          - 理解调用链
+          - 确定问题位置
+        verification:
+          - 堆栈已分析
+          - 调用链清晰
+          - 问题位置明确
+
+      - name: "3.2 假设验证"
+        agent: general-purpose
+        actions:
+          - 列出可能原因
+          - 添加调试日志
+          - 运行验证测试
+        verification:
+          - 假设已列出
+          - 验证已执行
+          - 根因已确认
+    output: root-cause-analysis.md
+    checkpoint_after: root_cause_identified
+
+  - name: "4. 编写回归测试"
+    mode: test
+    skill: /test
+    actions:
+      - 编写失败测试用例
+      - 验证 Bug 可复现
+      - 定义期望行为
+    priority: high
+    principle: "先写测试，确保 Bug 可复现"
+    checkpoint_after: regression_test_written
+    verification:
+      - 测试文件已创建
+      - 测试失败（确认可复现）
+      - 期望行为已定义
+
+  - name: "5. 修复 Bug"
+    mode: fix
+    agent: code-writer
+    actions:
+      - 应用最小修复
+      - 确保回归测试通过
+      - 检查是否引入新问题
+    principle: "最小改动原则"
+    verification:
+      - 回归测试通过
+      - 无新问题引入
+      - 代码改动最小
+
+  - name: "6. 验证修复"
+    mode: verify
+    skill: /test
+    actions:
+      - 运行回归测试
+      - 执行完整测试套件
+      - 手动验证修复
+      - 检查边界情况
+    checkpoint_after: fix_verified
+    verification:
+      - 回归测试通过
+      - 完整测试套件通过
+      - 无回归问题
+      - 边界情况覆盖
+
+  - name: "7. 防护措施"
+    mode: protect
+    executor: orchestrator
+    actions:
+      - 添加防御性代码
+      - 改善错误处理
+      - 添加日志/监控
+      - 更新文档
+
+  - name: "8. 文档更新"
+    executor: orchestrator
+    actions:
+      - 更新 CLAUDE.md 常见问题
+      - 记录问题根因
+      - 添加预防措施
+
+  - name: "9. 提交修复"
+    skill: /commit
+    commit_type: fix
+    actions:
+      - 引用相关 Issue
+      - 描述修复内容
+      - 说明测试情况
+
+exit_conditions:
+  - Bug 已修复（测试通过）
+  - 回归测试无问题
+  - 文档已更新
+  - 防护措施已添加
+
+# 事后分析
+post_mortem:
+  questions:
+    - "问题根因是什么？"
+    - "如何防止类似问题？"
+    - "是否需要系统改进？"
+    - "是否有其他类似代码？"
+  output: post-mortem.md
+
+# 代理调度策略
+scheduling_strategy:
+  explore_before_fix: sequential   # 先探索后修复
+  test_and_fix: loop               # 测试和修复循环
+  verification: parallel           # 验证可并行
+
+# 错误处理策略
+error_handling:
+  step_1_collect:
+    on_failure: L4
+    retry: 0
+    fallback: "请求用户提供完整的错误信息和复现步骤"
+
+  step_2_explore:
+    on_failure: L2
+    retry: 2
+    fallback: "请求用户提供相关文件位置"
+
+  step_3_analyze:
+    substep_3_1_stack:
+      on_failure: L2
+      retry: 1
+      fallback: "请求用户提供更多上下文"
+    substep_3_2_hypothesis:
+      on_failure: L3
+      checkpoint: affected_found
+      fallback: "重新探索代码，寻找其他可能原因"
+
+  step_4_test:
+    on_failure: L2
+    retry: 2
+    checkpoint: root_cause_identified
+    fallback: "根因可能错误，重新分析"
+
+  step_5_fix:
+    on_failure: L3
+    checkpoint: regression_test_written
+    retry: 2
+    fallback: "修复方案无效，重新分析根因"
+
+  step_6_verify:
+    on_failure: L3
+    checkpoint: regression_test_written
+    fallback: "修复引入新问题，重新修复"
+
+  step_7_protect:
+    on_failure: L1
+    retry: 0
+    fallback: "跳过防护措施，仅记录建议"

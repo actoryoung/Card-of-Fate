@@ -1,0 +1,73 @@
+# Refactor Workflow
+# 代码重构工作流
+
+name: Refactor
+description: 安全重构代码，改善设计同时保持功能不变
+
+steps:
+  - name: "1. 代码分析"
+    agent: refactor-agent
+    actions:
+      - 识别代码坏味道
+      - 计算复杂度指标
+      - 评估重构优先级
+    output: refactor-analysis.md
+
+  - name: "2. 确认测试覆盖"
+    command: /test
+    actions:
+      - 检查测试覆盖率
+      - 识别测试缺口
+      - 补充必要测试
+    threshold: "覆盖率 >= 80%"
+
+  - name: "3. 重构规划"
+    agent: refactor-agent
+    actions:
+      - 列出重构目标
+      - 按优先级排序
+      - 估算风险
+    output: refactor-plan.md
+
+  - name: "4. 小步重构"
+    agent: refactor-agent
+    actions:
+      - 选择一个重构点
+      - 应用重构手法
+      - 运行测试验证
+    loop: true
+    until:
+      - 所有重构目标完成
+      - 测试全部通过
+
+  - name: "5. 验证行为不变"
+    command: /test
+    actions:
+      - 运行完整测试套件
+      - 执行回归测试
+      - 性能基准测试
+
+  - name: "6. 代码审查"
+    agent: code-reviewer
+    focus:
+      - 可读性改善
+      - 复杂度降低
+      - 设计模式应用
+
+exit_conditions:
+  - 复杂度降低
+  - 可读性提升
+  - 所有测试通过
+  - 性能无明显下降
+
+principles:
+  - "每次只改一个问题"
+  - "频繁运行测试"
+  - "小步提交，随时回滚"
+  - "保持功能不变"
+
+anti_patterns:
+  - "大爆炸式重构"
+  - "边重构边改功能"
+  - "忽略测试"
+  - "过度优化"

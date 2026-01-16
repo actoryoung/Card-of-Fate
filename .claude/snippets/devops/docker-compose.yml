@@ -1,0 +1,124 @@
+# Docker Compose 片段
+
+## 基础服务栈
+```yaml
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://db:5432/{{dbname}}
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  db:
+    image: postgres:15-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=${DB_NAME:-{{dbname}}}
+      - POSTGRES_USER=${DB_USER:-user}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-password}
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - app
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+```
+
+## 开发环境
+```yaml
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - .:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+      - "9229:9229"  # Node.js debug
+    environment:
+      - NODE_ENV=development
+    command: npm run dev
+
+  db:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB={{dbname}}_dev
+      - POSTGRES_USER=dev
+      - POSTGRES_PASSWORD=dev
+
+  adminer:
+    image: adminer
+    ports:
+      - "8080:8080"
+```
+
+## CI/CD 步骤
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Build Docker image
+        run: docker build -t {{appname}}:${{ github.sha }} .
+
+      - name: Log in to registry
+        run: docker login -u ${{ secrets.REGISTRY_USER }} -p ${{ secrets.REGISTRY_PASS }}
+
+      - name: Push image
+        run: docker push {{appname}}:${{ github.sha }}
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            docker pull {{appname}}:${{ github.sha }}
+            docker stop {{appname}}
+            docker rm {{appname}}
+            docker run -d --name {{appname}} -p 3000:3000 {{appname}}:${{ github.sha }}
+```
