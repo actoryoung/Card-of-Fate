@@ -650,35 +650,101 @@ export class LevelManager {
     const level = this.getLevel(levelId);
     const rewards = [];
 
-    // 普通战只生成金币
+    // 普通战：金币 + 卡牌选择
     if (level.type === LEVEL_TYPES.NORMAL) {
       rewards.push({
         type: 'gold',
         amount: Math.floor(Math.random() * (level.rewards.goldMax - level.rewards.goldMin + 1)) + level.rewards.goldMin
       });
+      // 添加卡牌选择奖励
+      rewards.push({
+        type: 'card_choice',
+        cards: this.generateRandomCards(3, ['common', 'rare'])
+      });
       return rewards;
     }
 
-    // 精英战只生成金币
+    // 精英战：更多金币 + 更好的卡牌选择
     if (level.type === LEVEL_TYPES.ELITE) {
       rewards.push({
         type: 'gold',
         amount: Math.floor(Math.random() * (level.rewards.goldMax - level.rewards.goldMin + 1)) + level.rewards.goldMin
       });
+      // 添加卡牌选择奖励（可能包含稀有卡）
+      rewards.push({
+        type: 'card_choice',
+        cards: this.generateRandomCards(3, ['common', 'rare'], true)
+      });
       return rewards;
     }
 
-    // BOSS战只生成金币（根据测试期望）
+    // BOSS战：金币 + 稀有卡牌选择
     if (level.type === LEVEL_TYPES.BOSS) {
       rewards.push({
         type: 'gold',
         amount: Math.floor(Math.random() * (level.rewards.goldMax - level.rewards.goldMin + 1)) + level.rewards.goldMin
+      });
+      // 添加卡牌选择奖励（包含史诗卡）
+      rewards.push({
+        type: 'card_choice',
+        cards: this.generateRandomCards(3, ['rare', 'epic'], true)
       });
       return rewards;
     }
 
     // 休息点和商店不生成奖励
     return rewards;
+  }
+
+  /**
+   * 生成随机卡牌供玩家选择
+   * @param {number} count - 生成的卡牌数量
+   * @param {Array<string>} rarities - 允许的稀有度
+   * @param {boolean} guaranteeHigher - 是否保证至少一张更高稀有度的卡
+   * @returns {Array} 随机卡牌数组
+   */
+  generateRandomCards(count = 3, rarities = ['common', 'rare'], guaranteeHigher = false) {
+    const cards = [];
+
+    // 获取所有可用卡牌（从 CardManager）
+    const availableCards = this.cardManager && this.cardManager.allCards
+      ? [...this.cardManager.allCards]
+      : [];
+
+    if (availableCards.length === 0) {
+      console.warn('[LevelManager] 没有可用的卡牌数据');
+      return cards;
+    }
+
+    // 按稀有度分类
+    const cardsByRarity = {
+      common: availableCards.filter(c => c.rarity === 'common'),
+      rare: availableCards.filter(c => c.rarity === 'rare'),
+      epic: availableCards.filter(c => c.rarity === 'epic')
+    };
+
+    for (let i = 0; i < count; i++) {
+      let selectedCard = null;
+
+      // 如果需要保证更高稀有度，且是第一张卡
+      if (guaranteeHigher && i === 0 && cardsByRarity.rare.length > 0) {
+        selectedCard = cardsByRarity.rare[Math.floor(Math.random() * cardsByRarity.rare.length)];
+      } else {
+        // 根据稀有度权重随机选择
+        const rarity = rarities[Math.floor(Math.random() * rarities.length)];
+        const pool = cardsByRarity[rarity] || cardsByRarity.common;
+
+        if (pool && pool.length > 0) {
+          selectedCard = pool[Math.floor(Math.random() * pool.length)];
+        }
+      }
+
+      if (selectedCard) {
+        cards.push({ ...selectedCard }); // 创建副本避免修改原数据
+      }
+    }
+
+    return cards;
   }
 
   /**

@@ -308,7 +308,7 @@
             border-radius: 20px;
             padding: 40px;
             text-align: center;
-            max-width: 500px;
+            max-width: 800px;
         }
 
         .reward-title {
@@ -328,6 +328,121 @@
             background: rgba(255, 255, 255, 0.1);
             border-radius: 10px;
             font-size: 1.2em;
+        }
+
+        .gold-reward {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .reward-icon {
+            font-size: 1.5em;
+        }
+
+        /* 卡牌选择容器 */
+        .card-choice-container {
+            margin: 30px 0;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+        }
+
+        .card-choice-title {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: #ffd700;
+        }
+
+        .card-choice-cards {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .card-reward {
+            background: rgba(255, 255, 255, 0.1);
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            width: 180px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .card-reward:hover {
+            transform: translateY(-10px) scale(1.05);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border-color: rgba(255, 255, 255, 0.8);
+        }
+
+        .card-reward.card-selected {
+            border-color: #ffd700;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+        }
+
+        .card-reward.card-common {
+            border-color: #9e9e9e;
+        }
+
+        .card-reward.card-rare {
+            border-color: #2196f3;
+            box-shadow: 0 0 10px rgba(33, 150, 243, 0.5);
+        }
+
+        .card-reward.card-epic {
+            border-color: #9c27b0;
+            box-shadow: 0 0 15px rgba(156, 39, 176, 0.7);
+        }
+
+        .card-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
+        .card-info {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .card-name {
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        .card-cost {
+            font-size: 0.9em;
+            color: #ffd700;
+        }
+
+        .card-description {
+            font-size: 0.85em;
+            color: rgba(255, 255, 255, 0.8);
+            line-height: 1.4;
+        }
+
+        .card-rarity {
+            font-size: 0.75em;
+            text-transform: uppercase;
+            padding: 3px 8px;
+            border-radius: 10px;
+            margin-top: 5px;
+        }
+
+        .card-rarity.card-common {
+            background: rgba(158, 158, 158, 0.3);
+        }
+
+        .card-rarity.card-rare {
+            background: rgba(33, 150, 243, 0.3);
+        }
+
+        .card-rarity.card-epic {
+            background: rgba(156, 39, 176, 0.3);
         }
 
         /* 游戏结束界面 */
@@ -448,6 +563,14 @@
                 <h2 class="reward-title">关卡完成！</h2>
                 <div class="reward-items" id="reward-items">
                     <!-- 奖励将通过 JavaScript 动态生成 -->
+                </div>
+                <!-- 卡牌选择区域 -->
+                <div id="card-choice-container" class="card-choice-container" style="display: none;">
+                    <h3 class="card-choice-title">选择一张卡牌加入卡组</h3>
+                    <div id="card-choice-cards" class="card-choice-cards">
+                        <!-- 卡牌选项将通过 JavaScript 动态生成 -->
+                    </div>
+                    <button id="btn-skip-card" class="btn btn-secondary">跳过</button>
                 </div>
                 <button id="btn-next-level" class="btn">下一关</button>
             </div>

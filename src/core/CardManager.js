@@ -397,6 +397,37 @@ export class CardManager {
   }
 
   /**
+   * 直接添加卡牌对象到卡组（便捷方法）
+   * @param {Object} card - 卡牌对象
+   * @returns {{success: boolean, card?: Object, message?: string}} - 操作结果
+   */
+  addToDeck(card) {
+    if (!card || !card.id) {
+      return {
+        success: false,
+        message: 'ERR_INVALID_CARD: 无效的卡牌对象'
+      };
+    }
+
+    // 检查卡组上限
+    if (this.deck.length >= this.maxDeckSize) {
+      return {
+        success: false,
+        message: 'ERR_DECK_FULL: 卡组已满（20/20），请先移除卡牌'
+      };
+    }
+
+    // 添加卡牌到卡组和抽牌堆
+    const cardCopy = { ...card };
+    this.deck.push(cardCopy);
+    this.drawPile.push(cardCopy);
+
+    console.log(`[CardManager] 添加卡牌 ${card.name} 到卡组，当前卡组大小: ${this.deck.length}`);
+
+    return { success: true, card: cardCopy };
+  }
+
+  /**
    * 按类型查询卡牌
    * @param {string} type - 卡牌类型
    * @returns {Card[]} - 匹配的卡牌数组

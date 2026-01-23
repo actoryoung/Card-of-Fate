@@ -109,6 +109,9 @@ class CombatSystem {
     // 添加战斗日志
     this.addCombatLog(`战斗开始！敌人: ${enemy.name}`);
 
+    // 初始化敌人意图（在第一回合开始前显示）
+    this.showEnemyIntent();
+
     // 开始玩家回合
     this.startPlayerTurn();
   }
@@ -121,6 +124,10 @@ class CombatSystem {
 
     this.playerTurn = true;
     this.combatState.currentTurn = 'player';
+
+    // 重置护甲（护甲只在当前回合有效）
+    this.combatState.player.armor = 0;
+    this.combatState.enemy.armor = 0;
 
     // 触发回合开始效果
     this.processTurnStartEffects(this.combatState.player);
@@ -295,17 +302,22 @@ class CombatSystem {
       throw new Error(ERRORS.INVALID_TARGET);
     }
 
-    const actualDamage = this.calculateDamage(damage, this.combatState.player, targetObj);
+    const damageResult = this.calculateDamage(damage, this.combatState.player, targetObj);
 
-    // 应用伤害
-    targetObj.hp = Math.max(0, targetObj.hp - actualDamage);
+    // 应用HP伤害
+    targetObj.hp = Math.max(0, targetObj.hp - damageResult.hpDamage);
 
     // 显示伤害
     if (this.gameRenderer && this.gameRenderer.showDamage) {
-      this.gameRenderer.showDamage(actualDamage, target === 'player');
+      this.gameRenderer.showDamage(damageResult.hpDamage, target === 'player');
     }
 
-    this.addCombatLog(`造成 ${actualDamage} 点伤害给 ${targetObj.name}`);
+    // 记录战斗日志
+    if (damageResult.armorConsumed > 0) {
+      this.addCombatLog(`造成 ${damageResult.hpDamage} 点伤害（护甲吸收 ${damageResult.armorConsumed}）`);
+    } else {
+      this.addCombatLog(`造成 ${damageResult.hpDamage} 点伤害给 ${targetObj.name}`);
+    }
   }
 
   /**
@@ -433,11 +445,11 @@ class CombatSystem {
   }
 
   /**
-   * 计算伤害
+   * 计算伤害并应用护甲消耗
    * @param {number} baseDamage - 基础伤害
    * @param {Object} attacker - 攻击者
    * @param {Object} defender - 防御者
-   * @returns {number} 最终伤害
+   * @returns {Object} {hpDamage: 伤害到HP的数值, armorConsumed: 消耗的护甲}
    */
   calculateDamage(baseDamage, attacker, defender) {
     let damage = baseDamage;
@@ -462,13 +474,25 @@ class CombatSystem {
       }
     }
 
-    // 计算最终伤害
-    damage = damage - defender.armor;
+    // 护甲优先抵消伤害（Block机制）
+    let armorConsumed = 0;
+    let hpDamage = damage;
 
-    // 最小伤害为1
-    damage = Math.max(1, damage);
+    if (defender.armor > 0) {
+      if (damage <= defender.armor) {
+        // 伤害完全被护甲吸收，HP不受伤害
+        armorConsumed = damage;
+        hpDamage = 0;
+      } else {
+        // 护甲耗尽，剩余伤害作用于HP
+        armorConsumed = defender.armor;
+        hpDamage = damage - defender.armor;
+      }
+      // 消耗护甲
+      defender.armor -= armorConsumed;
+    }
 
-    return damage;
+    return { hpDamage, armorConsumed, totalDamage: damage };
   }
 
   /**
@@ -630,12 +654,16 @@ class CombatSystem {
 
     switch (intent.type) {
       case INTENTS.ATTACK:
-        const damage = this.calculateDamage(intent.value, this.combatState.enemy, this.combatState.player);
-        this.combatState.player.hp = Math.max(0, this.combatState.player.hp - damage);
+        const damageResult = this.calculateDamage(intent.value, this.combatState.enemy, this.combatState.player);
+        this.combatState.player.hp = Math.max(0, this.combatState.player.hp - damageResult.hpDamage);
         if (this.gameRenderer && this.gameRenderer.showDamage) {
-          this.gameRenderer.showDamage(damage, true);
+          this.gameRenderer.showDamage(damageResult.hpDamage, true);
         }
-        this.addCombatLog(`敌人造成 ${damage} 点伤害`);
+        if (damageResult.armorConsumed > 0) {
+          this.addCombatLog(`敌人造成 ${damageResult.hpDamage} 点伤害（护甲吸收 ${damageResult.armorConsumed}）`);
+        } else {
+          this.addCombatLog(`敌人造成 ${damageResult.hpDamage} 点伤害`);
+        }
         break;
 
       case INTENTS.DEFEND:
@@ -647,12 +675,16 @@ class CombatSystem {
         break;
 
       case INTENTS.SKILL:
-        const skillDamage = this.calculateDamage(intent.value, this.combatState.enemy, this.combatState.player);
-        this.combatState.player.hp = Math.max(0, this.combatState.player.hp - skillDamage);
+        const skillDamageResult = this.calculateDamage(intent.value, this.combatState.enemy, this.combatState.player);
+        this.combatState.player.hp = Math.max(0, this.combatState.player.hp - skillDamageResult.hpDamage);
         if (this.gameRenderer && this.gameRenderer.showDamage) {
-          this.gameRenderer.showDamage(skillDamage, true);
+          this.gameRenderer.showDamage(skillDamageResult.hpDamage, true);
         }
-        this.addCombatLog(`敌人技能造成 ${skillDamage} 点伤害`);
+        if (skillDamageResult.armorConsumed > 0) {
+          this.addCombatLog(`敌人技能造成 ${skillDamageResult.hpDamage} 点伤害（护甲吸收 ${skillDamageResult.armorConsumed}）`);
+        } else {
+          this.addCombatLog(`敌人技能造成 ${skillDamageResult.hpDamage} 点伤害`);
+        }
         break;
 
       default:

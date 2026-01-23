@@ -668,6 +668,59 @@ export class Game {
       showRewardScreen();
     }
 
+    const rewardItemsContainer = document.getElementById('reward-items');
+    const cardChoiceContainer = document.getElementById('card-choice-container');
+    const cardChoiceCards = document.getElementById('card-choice-cards');
+    const nextLevelBtn = document.getElementById('btn-next-level');
+    const skipCardBtn = document.getElementById('btn-skip-card');
+
+    // 清空之前的奖励内容
+    if (rewardItemsContainer) {
+      rewardItemsContainer.innerHTML = '';
+    }
+    if (cardChoiceCards) {
+      cardChoiceCards.innerHTML = '';
+    }
+
+    // 处理奖励
+    rewards.forEach(reward => {
+      if (reward.type === 'gold') {
+        // 显示金币奖励
+        const goldDiv = document.createElement('div');
+        goldDiv.className = 'reward-item gold-reward';
+        goldDiv.innerHTML = `<span class="reward-icon">💰</span><span class="reward-text">+${reward.amount} 金币</span>`;
+        if (rewardItemsContainer) {
+          rewardItemsContainer.appendChild(goldDiv);
+        }
+      } else if (reward.type === 'card_choice' && reward.cards && reward.cards.length > 0) {
+        // 显示卡牌选择
+        if (cardChoiceContainer) {
+          cardChoiceContainer.style.display = 'block';
+        }
+
+        // 隐藏"下一关"按钮，等选择完再显示
+        if (nextLevelBtn) {
+          nextLevelBtn.style.display = 'none';
+        }
+
+        // 渲染卡牌选项
+        reward.cards.forEach(card => {
+          const cardEl = this.createRewardCardElement(card);
+          if (cardChoiceCards) {
+            cardChoiceCards.appendChild(cardEl);
+          }
+        });
+
+        // 设置跳过按钮
+        if (skipCardBtn) {
+          skipCardBtn.style.display = 'inline-block';
+          skipCardBtn.onclick = () => {
+            this.finishCardSelection();
+          };
+        }
+      }
+    });
+
     if (this.renderer) {
       // 显示奖励信息
       rewards.forEach(reward => {
@@ -677,13 +730,103 @@ export class Game {
             message = `获得 ${reward.amount} 金币！`;
             break;
           case 'card_choice':
-            message = '获得卡牌选择！';
+            message = '选择一张卡牌加入卡组！';
             break;
           default:
             message = '获得奖励！';
         }
         this.renderer.showFeedback(message, 'success');
       });
+    }
+  }
+
+  /**
+   * 创建奖励卡牌元素
+   * @param {Object} card - 卡牌数据
+   * @returns {HTMLElement} 卡牌元素
+   * @private
+   */
+  createRewardCardElement(card) {
+    const cardEl = document.createElement('div');
+    cardEl.className = `card-reward card-${card.rarity}`;
+    cardEl.dataset.cardId = card.id;
+
+    const rarityClass = {
+      common: 'card-common',
+      rare: 'card-rare',
+      epic: 'card-epic'
+    };
+
+    cardEl.innerHTML = `
+      <div class="card-icon">${card.icon || '🎴'}</div>
+      <div class="card-info">
+        <div class="card-name">${card.name}</div>
+        <div class="card-cost">能量: ${card.cost}</div>
+        <div class="card-description">${card.description}</div>
+        <div class="card-rarity ${rarityClass[card.rarity] || ''}">${card.rarity || 'common'}</div>
+      </div>
+    `;
+
+    // 点击选择卡牌
+    cardEl.addEventListener('click', () => {
+      this.selectCard(card);
+    });
+
+    return cardEl;
+  }
+
+  /**
+   * 选择卡牌加入卡组
+   * @param {Object} card - 选择的卡牌
+   * @private
+   */
+  selectCard(card) {
+    if (this.cardManager) {
+      // 添加卡牌到卡组
+      this.cardManager.addToDeck(card);
+
+      if (this.renderer) {
+        this.renderer.showFeedback(`获得了 ${card.name}！`, 'success');
+      }
+
+      // 禁用所有卡牌选择
+      const cardCards = document.querySelectorAll('.card-reward');
+      cardCards.forEach(el => {
+        el.style.pointerEvents = 'none';
+        el.style.opacity = '0.5';
+      });
+
+      // 高亮选中的卡牌
+      const selectedCard = document.querySelector(`.card-reward[data-card-id="${card.id}"]`);
+      if (selectedCard) {
+        selectedCard.style.opacity = '1';
+        selectedCard.classList.add('card-selected');
+      }
+
+      // 延迟后关闭选择界面
+      setTimeout(() => {
+        this.finishCardSelection();
+      }, 500);
+    }
+  }
+
+  /**
+   * 完成卡牌选择
+   * @private
+   */
+  finishCardSelection() {
+    const cardChoiceContainer = document.getElementById('card-choice-container');
+    const nextLevelBtn = document.getElementById('btn-next-level');
+    const skipCardBtn = document.getElementById('btn-skip-card');
+
+    if (cardChoiceContainer) {
+      cardChoiceContainer.style.display = 'none';
+    }
+    if (nextLevelBtn) {
+      nextLevelBtn.style.display = 'inline-block';
+    }
+    if (skipCardBtn) {
+      skipCardBtn.style.display = 'none';
     }
   }
 
