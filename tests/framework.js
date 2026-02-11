@@ -12,6 +12,7 @@ class TestRunner {
       skipped: 0
     };
     this.beforeEachHooks = [];
+    this.currentTests = [];
   }
 
   describe(name, fn) {
@@ -20,9 +21,14 @@ class TestRunner {
 
     console.group(`📦 ${name}`);
     fn(this);
-    console.groupEnd();
+
+    // 等待所有测试完成
+    Promise.all(this.currentTests).then(() => {
+      console.groupEnd();
+    });
 
     this.beforeEachHooks = beforeEachHooksBackup;
+    this.currentTests = [];
   }
 
   beforeEach(fn) {
@@ -46,7 +52,7 @@ class TestRunner {
         console.error(`   ${error.message}`);
       }
     })();
-    // 返回 Promise 以便 await
+    this.currentTests.push(testPromise);
     return testPromise;
   }
 
@@ -152,6 +158,11 @@ class TestRunner {
           throw new Error(`Expected undefined, but got ${actual}`);
         }
       },
+      toBeDefined: () => {
+        if (actual === undefined) {
+          throw new Error(`Expected defined value, but got undefined`);
+        }
+      },
       toBeGreaterThan: (expected) => {
         if (!(actual > expected)) {
           throw new Error(`Expected ${actual} to be greater than ${expected}`);
@@ -183,11 +194,20 @@ class TestRunner {
         } else if (Array.isArray(actual) && !actual.includes(expected)) {
           throw new Error(`Expected array to contain ${expected}, but got [${actual.join(', ')}]`);
         }
+      },
+      toHaveLength: (expected) => {
+        const actualLength = actual.length;
+        if (actualLength !== expected) {
+          throw new Error(`Expected length ${expected}, but got ${actualLength}`);
+        }
       }
     };
   }
 
-  summary() {
+  async summary() {
+    // 等待所有测试完成
+    await new Promise(resolve => setTimeout(resolve, 100));
+
     console.log('\n📊 测试结果:');
     console.log(`✅ 通过: ${this.results.passed}`);
     console.log(`❌ 失败: ${this.results.failed}`);

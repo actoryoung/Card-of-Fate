@@ -14,7 +14,8 @@ export default class GameState {
       gold: 0,
       deck: [],
       unlockedCards: [],
-      unlockedItems: []
+      unlockedItems: [],
+      relics: []
     };
     this.progressState = {
       currentLevel: 1,
@@ -125,7 +126,8 @@ export default class GameState {
       gold: 0,
       deck: [],
       unlockedCards: [...permanentUnlocks.unlockedCards || []],
-      unlockedItems: [...permanentUnlocks.unlockedItems || []]
+      unlockedItems: [...permanentUnlocks.unlockedItems || []],
+      relics: []
     };
     this.progressState = {
       currentLevel: 1,
@@ -152,6 +154,7 @@ export default class GameState {
       deck: this.playerState.deck,
       unlockedCards: this.playerState.unlockedCards,
       unlockedItems: this.playerState.unlockedItems,
+      relics: this.playerState.relics || [],
       currentLevel: this.progressState.currentLevel,
       currentArea: this.progressState.currentArea,
       maxLevel: this.progressState.maxLevel,
@@ -224,7 +227,8 @@ export default class GameState {
           gold: data.gold,
           deck: data.deck || [],
           unlockedCards: data.unlockedCards || [],
-          unlockedItems: data.unlockedItems || []
+          unlockedItems: data.unlockedItems || [],
+          relics: data.relics || []
         };
         this.progressState = {
           currentLevel: data.currentLevel,

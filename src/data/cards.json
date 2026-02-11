@@ -34,8 +34,8 @@
     "name": "铁壁",
     "type": "defense",
     "cost": 1,
-    "description": "获得 8 点护甲",
-    "effect": { "type": "armor", "value": 8 },
+    "description": "获得 8 点格挡",
+    "effect": { "type": "block", "value": 8 },
     "rarity": "common",
     "icon": "🛡️"
   },
@@ -44,8 +44,8 @@
     "name": "坚盾",
     "type": "defense",
     "cost": 2,
-    "description": "获得 15 点护甲",
-    "effect": { "type": "armor", "value": 15 },
+    "description": "获得 15 点格挡",
+    "effect": { "type": "block", "value": 15 },
     "rarity": "rare",
     "icon": "🛡️"
   },
@@ -98,5 +98,15 @@
     "effect": { "type": "draw_energy", "value": 1 },
     "rarity": "rare",
     "icon": "🔄"
+  },
+  {
+    "id": "skill_dexterity",
+    "name": "敏捷",
+    "type": "skill",
+    "cost": 1,
+    "description": "获得 2 点敏捷，持续 1 回合",
+    "effect": { "type": "dexterity", "value": 2, "duration": 1 },
+    "rarity": "rare",
+    "icon": "💨"
   }
 ]

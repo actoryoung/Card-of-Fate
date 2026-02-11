@@ -1,11 +1,12 @@
 {
-  "name": "card-of-fate",
-  "version": "0.1.0",
-  "description": "一款轻量级卡牌策略闯关游戏",
+  "name": "spire-card-game",
+  "version": "1.0.0",
+  "description": "杀戮尖塔式卡牌游戏",
   "type": "module",
   "scripts": {
     "dev": "http-server . -p 8080 -c-1 --cors -o",
-    "start": "npm run dev"
+    "start": "npm run dev",
+    "test": "node run-tests.js"
   },
   "devDependencies": {
     "http-server": "^14.1.1"

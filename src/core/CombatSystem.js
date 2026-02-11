@@ -3,13 +3,17 @@
  * 处理战斗回合流程、卡牌效果执行、伤害计算、状态效果管理
  */
 
+import { RelicManager, TRIGGER_TIMING, EFFECT_TYPES } from './RelicManager.js';
+
 // 状态效果类型常量
 const STATUS_TYPES = {
   POISON: 'poison',
   BURN: 'burn',
   WEAK: 'weak',
   VULNERABLE: 'vulnerable',
-  DISARM: 'disarm'
+  DISARM: 'disarm',
+  DEXTERITY: 'dexterity',  // 敏捷：增加获得的格挡值
+  STRENGTH: 'strength'      // 力量：增加攻击伤害
 };
 
 // 敌人意图类型常量
@@ -41,11 +45,13 @@ class CombatSystem {
    * @param {Object} gameState - 游戏状态管理器
    * @param {Object} cardManager - 卡牌管理器
    * @param {Object} gameRenderer - 游戏渲染器
+   * @param {RelicManager} relicManager - 遗物管理器
    */
-  constructor(gameState = null, cardManager = null, gameRenderer = null) {
+  constructor(gameState = null, cardManager = null, gameRenderer = null, relicManager = null) {
     this.gameState = gameState;
     this.cardManager = cardManager;
     this.gameRenderer = gameRenderer;
+    this.relicManager = relicManager;
 
     // 战斗状态
     this.combatState = null;
@@ -84,7 +90,8 @@ class CombatSystem {
         maxHp: 100,
         energy: 3,
         maxEnergy: 3,
-        armor: 0,
+        armor: 0,           // 永久护甲（暂未使用）
+        block: 0,           // 临时格挡（回合结束清零）
         statusEffects: [],
         bonusDamage: 0
       },
@@ -94,7 +101,8 @@ class CombatSystem {
         hp: enemy.hp,
         maxHp: enemy.hp,
         attack: enemy.attack || 10,
-        armor: enemy.armor || 0,
+        armor: enemy.armor || 0,  // 永久护甲
+        block: 0,                 // 临时格挡（回合结束清零）
         intent: null,
         statusEffects: []
       }
@@ -106,8 +114,18 @@ class CombatSystem {
     this.playerTurn = true;
     this.lastCardType = null;
 
+    // 重置遗物战斗状态
+    if (this.relicManager) {
+      this.relicManager.resetCombatState();
+    }
+
     // 添加战斗日志
     this.addCombatLog(`战斗开始！敌人: ${enemy.name}`);
+
+    // 触发战斗开始时的遗物效果
+    if (this.relicManager) {
+      this._triggerRelicEffects(TRIGGER_TIMING.ON_COMBAT_START);
+    }
 
     // 初始化敌人意图（在第一回合开始前显示）
     this.showEnemyIntent();
@@ -125,12 +143,17 @@ class CombatSystem {
     this.playerTurn = true;
     this.combatState.currentTurn = 'player';
 
-    // 重置护甲（护甲只在当前回合有效）
-    this.combatState.player.armor = 0;
-    this.combatState.enemy.armor = 0;
+    // 清零格挡（格挡在回合结束时清零，这里确保新回合开始时格挡为0）
+    this.combatState.player.block = 0;
+    this.combatState.enemy.block = 0;
 
     // 触发回合开始效果
     this.processTurnStartEffects(this.combatState.player);
+
+    // 触发回合开始时的遗物效果
+    if (this.relicManager) {
+      this._triggerRelicEffects(TRIGGER_TIMING.ON_TURN_START);
+    }
 
     // 自动抽5张牌
     this.drawCards(5);
@@ -142,6 +165,11 @@ class CombatSystem {
     this.processStatusEffects(this.combatState.player);
     this.processStatusEffects(this.combatState.enemy);
 
+    // 检查敌人是否因状态效果死亡
+    if (this.combatState.enemy.hp <= 0) {
+      this._onEnemyDeath();
+    }
+
     this.addCombatLog(`玩家回合开始 #${this.combatState.turn}`);
   }
 
@@ -151,8 +179,16 @@ class CombatSystem {
   endPlayerTurn() {
     if (!this.combatState || this.combatState.currentTurn !== 'player') return;
 
+    // 清零格挡（格挡只在当前回合有效）
+    this.clearBlock(this.combatState.player);
+
     // 触发回合结束效果
     this.processTurnEndEffects(this.combatState.player);
+
+    // 触发回合结束时的遗物效果
+    if (this.relicManager) {
+      this._triggerRelicEffects(TRIGGER_TIMING.ON_TURN_END);
+    }
 
     // 弃置所有手牌
     this.discardAllHandCards();
@@ -230,8 +266,16 @@ class CombatSystem {
       throw new Error(ERRORS.INVALID_TARGET);
     }
 
+    // 检查费用减免（遗物效果）
+    let cardCost = card.cost;
+    if (this.relicManager && this.relicManager.hasCostReduction() && cardCost > 0) {
+      cardCost = 0;
+      this.relicManager.clearCostReduction();
+      this.addCombatLog(`遗物效果：本张牌费用为0`);
+    }
+
     // 检查能量
-    if (this.combatState.player.energy < card.cost) {
+    if (this.combatState.player.energy < cardCost) {
       throw new Error(ERRORS.INSUFFICIENT_ENERGY);
     }
 
@@ -239,11 +283,21 @@ class CombatSystem {
     this.executeCardEffect(card, targetId);
 
     // 消耗能量
-    this.combatState.player.energy -= card.cost;
+    this.combatState.player.energy -= cardCost;
 
     // 从手牌移除
     if (this.cardManager && this.cardManager.removeFromHand) {
       this.cardManager.removeFromHand(cardId);
+    }
+
+    // 触发打出卡牌时的遗物效果
+    if (this.relicManager) {
+      this._triggerRelicEffects(TRIGGER_TIMING.ON_CARD_PLAY, { card, targetId });
+    }
+
+    // 检查敌人是否死亡
+    if (this.combatState.enemy.hp <= 0) {
+      this._onEnemyDeath();
     }
 
     return true;
@@ -312,9 +366,17 @@ class CombatSystem {
       this.gameRenderer.showDamage(damageResult.hpDamage, target === 'player');
     }
 
-    // 记录战斗日志
+    // 记录战斗日志（显示格挡和护甲消耗）
+    const defenseInfo = [];
+    if (damageResult.blockConsumed > 0) {
+      defenseInfo.push(`格挡吸收 ${damageResult.blockConsumed}`);
+    }
     if (damageResult.armorConsumed > 0) {
-      this.addCombatLog(`造成 ${damageResult.hpDamage} 点伤害（护甲吸收 ${damageResult.armorConsumed}）`);
+      defenseInfo.push(`护甲吸收 ${damageResult.armorConsumed}`);
+    }
+
+    if (defenseInfo.length > 0) {
+      this.addCombatLog(`造成 ${damageResult.hpDamage} 点伤害（${defenseInfo.join('，')}）`);
     } else {
       this.addCombatLog(`造成 ${damageResult.hpDamage} 点伤害给 ${targetObj.name}`);
     }
@@ -331,22 +393,42 @@ class CombatSystem {
       throw new Error(ERRORS.INVALID_TARGET);
     }
 
-    // 从 effect 中获取护甲值
-    let armorGain = 0;
-    if (card.effect && card.effect.type === 'armor') {
-      armorGain = card.effect.value || 0;
+    // 从 effect 中获取基础格挡值
+    let baseBlock = 0;
+    if (card.effect && card.effect.type === 'block') {
+      baseBlock = card.effect.value || 0;
+    } else if (card.effect && card.effect.type === 'armor') {
+      // 兼容旧的 armor 类型
+      baseBlock = card.effect.value || 0;
+    } else if (card.block) {
+      baseBlock = card.block;
     } else if (card.armor) {
-      armorGain = card.armor;
+      baseBlock = card.armor;
     }
 
-    targetObj.armor += armorGain;
-
-    // 显示护甲
-    if (this.gameRenderer && this.gameRenderer.showArmor) {
-      this.gameRenderer.showArmor(armorGain);
+    // 计算敏捷加成（每点敏捷增加1点格挡）
+    let bonusBlock = 0;
+    if (targetObj.statusEffects && targetObj.statusEffects.length > 0) {
+      const dexterityEffect = targetObj.statusEffects.find(s => s.type === STATUS_TYPES.DEXTERITY);
+      if (dexterityEffect) {
+        bonusBlock = dexterityEffect.value;
+      }
     }
 
-    this.addCombatLog(`${targetObj.name} 获得 ${armorGain} 护甲`);
+    const finalBlock = baseBlock + bonusBlock;
+
+    // 添加格挡
+    targetObj.block += finalBlock;
+
+    // 显示格挡
+    if (this.gameRenderer && this.gameRenderer.showBlock) {
+      this.gameRenderer.showBlock(finalBlock);
+    }
+
+    const logMsg = bonusBlock > 0
+      ? `${targetObj.name} 获得 ${finalBlock} 格挡（基础 ${baseBlock} + 敏捷 ${bonusBlock}）`
+      : `${targetObj.name} 获得 ${finalBlock} 格挡`;
+    this.addCombatLog(logMsg);
     this.lastCardType = CARD_TYPES.DEFEND;
   }
 
@@ -436,6 +518,38 @@ class CombatSystem {
 
       this.addCombatLog(`抽 ${drawnCards.length} 张牌，获得 ${value} 点能量`);
 
+    } else if (effect.type === 'block') {
+      // 格挡效果
+      const targetObj = this.getTarget(target);
+      if (!targetObj || targetObj === this.combatState.enemy) {
+        throw new Error(ERRORS.INVALID_TARGET);
+      }
+
+      let baseBlock = effect.value || 0;
+      // 计算敏捷加成
+      let bonusBlock = 0;
+      if (targetObj.statusEffects && targetObj.statusEffects.length > 0) {
+        const dexterityEffect = targetObj.statusEffects.find(s => s.type === STATUS_TYPES.DEXTERITY);
+        if (dexterityEffect) {
+          bonusBlock = dexterityEffect.value;
+        }
+      }
+      const finalBlock = baseBlock + bonusBlock;
+      targetObj.block += finalBlock;
+      this.addCombatLog(`获得 ${finalBlock} 格挡`);
+
+    } else if (effect.type === 'dexterity') {
+      // 敏捷效果
+      const targetObj = this.getTarget(target);
+      if (!targetObj || targetObj === this.combatState.enemy) {
+        throw new Error(ERRORS.INVALID_TARGET);
+      }
+
+      const duration = effect.duration || 1;
+      const value = effect.value || 1;
+      this.applyStatusEffect(targetObj, STATUS_TYPES.DEXTERITY, duration, value);
+      this.addCombatLog(`获得敏捷 ${value}，持续 ${duration} 回合`);
+
     } else {
       console.warn('[CombatSystem] 未知的技能效果类型:', effect.type);
       throw new Error(ERRORS.INVALID_EFFECT);
@@ -445,11 +559,12 @@ class CombatSystem {
   }
 
   /**
-   * 计算伤害并应用护甲消耗
+   * 计算伤害并应用格挡和护甲消耗
+   * 杀戮尖塔机制：先消耗格挡（临时），再消耗护甲（永久）
    * @param {number} baseDamage - 基础伤害
    * @param {Object} attacker - 攻击者
    * @param {Object} defender - 防御者
-   * @returns {Object} {hpDamage: 伤害到HP的数值, armorConsumed: 消耗的护甲}
+   * @returns {Object} {hpDamage: 伤害到HP的数值, blockConsumed: 消耗的格挡, armorConsumed: 消耗的护甲}
    */
   calculateDamage(baseDamage, attacker, defender) {
     let damage = baseDamage;
@@ -459,7 +574,15 @@ class CombatSystem {
       damage += attacker.bonusDamage;
     }
 
-    // 处理状态效果
+    // 处理攻击者的力量状态效果
+    if (attacker.statusEffects && attacker.statusEffects.length > 0) {
+      const strengthEffect = attacker.statusEffects.find(s => s.type === STATUS_TYPES.STRENGTH);
+      if (strengthEffect) {
+        damage += strengthEffect.value;
+      }
+    }
+
+    // 处理防御者的状态效果
     if (defender.statusEffects && defender.statusEffects.length > 0) {
       // 虚弱效果减少25%伤害
       const weakEffect = defender.statusEffects.find(s => s.type === STATUS_TYPES.WEAK);
@@ -474,25 +597,48 @@ class CombatSystem {
       }
     }
 
-    // 护甲优先抵消伤害（Block机制）
+    // 先消耗格挡（临时防御），再消耗护甲（永久防御）
+    let blockConsumed = 0;
     let armorConsumed = 0;
     let hpDamage = damage;
+    let remainingDamage = damage;
 
-    if (defender.armor > 0) {
-      if (damage <= defender.armor) {
-        // 伤害完全被护甲吸收，HP不受伤害
-        armorConsumed = damage;
+    // 第一步：消耗格挡
+    if (defender.block > 0) {
+      if (remainingDamage <= defender.block) {
+        // 伤害完全被格挡吸收
+        blockConsumed = remainingDamage;
+        hpDamage = 0;
+        remainingDamage = 0;
+      } else {
+        // 格挡耗尽，继续处理护甲
+        blockConsumed = defender.block;
+        remainingDamage -= defender.block;
+      }
+      // 消耗格挡
+      defender.block -= blockConsumed;
+    }
+
+    // 第二步：消耗护甲（如果还有剩余伤害）
+    if (remainingDamage > 0 && defender.armor > 0) {
+      hpDamage = remainingDamage;
+      if (remainingDamage <= defender.armor) {
+        // 伤害完全被护甲吸收
+        armorConsumed = remainingDamage;
         hpDamage = 0;
       } else {
         // 护甲耗尽，剩余伤害作用于HP
         armorConsumed = defender.armor;
-        hpDamage = damage - defender.armor;
+        hpDamage = remainingDamage - defender.armor;
       }
       // 消耗护甲
       defender.armor -= armorConsumed;
+    } else if (remainingDamage > 0) {
+      // 没有护甲，所有剩余伤害作用于HP
+      hpDamage = remainingDamage;
     }
 
-    return { hpDamage, armorConsumed, totalDamage: damage };
+    return { hpDamage, blockConsumed, armorConsumed, totalDamage: damage };
   }
 
   /**
@@ -659,19 +805,27 @@ class CombatSystem {
         if (this.gameRenderer && this.gameRenderer.showDamage) {
           this.gameRenderer.showDamage(damageResult.hpDamage, true);
         }
+        // 记录格挡和护甲消耗
+        const defenseInfo = [];
+        if (damageResult.blockConsumed > 0) {
+          defenseInfo.push(`格挡吸收 ${damageResult.blockConsumed}`);
+        }
         if (damageResult.armorConsumed > 0) {
-          this.addCombatLog(`敌人造成 ${damageResult.hpDamage} 点伤害（护甲吸收 ${damageResult.armorConsumed}）`);
+          defenseInfo.push(`护甲吸收 ${damageResult.armorConsumed}`);
+        }
+        if (defenseInfo.length > 0) {
+          this.addCombatLog(`敌人造成 ${damageResult.hpDamage} 点伤害（${defenseInfo.join('，')}）`);
         } else {
           this.addCombatLog(`敌人造成 ${damageResult.hpDamage} 点伤害`);
         }
         break;
 
       case INTENTS.DEFEND:
-        this.combatState.enemy.armor += intent.value;
-        if (this.gameRenderer && this.gameRenderer.showArmor) {
-          this.gameRenderer.showArmor(intent.value);
+        this.combatState.enemy.block += intent.value;
+        if (this.gameRenderer && this.gameRenderer.showBlock) {
+          this.gameRenderer.showBlock(intent.value);
         }
-        this.addCombatLog(`敌人获得 ${intent.value} 护甲`);
+        this.addCombatLog(`敌人获得 ${intent.value} 格挡`);
         break;
 
       case INTENTS.SKILL:
@@ -680,8 +834,16 @@ class CombatSystem {
         if (this.gameRenderer && this.gameRenderer.showDamage) {
           this.gameRenderer.showDamage(skillDamageResult.hpDamage, true);
         }
+        // 记录格挡和护甲消耗
+        const skillDefenseInfo = [];
+        if (skillDamageResult.blockConsumed > 0) {
+          skillDefenseInfo.push(`格挡吸收 ${skillDamageResult.blockConsumed}`);
+        }
         if (skillDamageResult.armorConsumed > 0) {
-          this.addCombatLog(`敌人技能造成 ${skillDamageResult.hpDamage} 点伤害（护甲吸收 ${skillDamageResult.armorConsumed}）`);
+          skillDefenseInfo.push(`护甲吸收 ${skillDamageResult.armorConsumed}`);
+        }
+        if (skillDefenseInfo.length > 0) {
+          this.addCombatLog(`敌人技能造成 ${skillDamageResult.hpDamage} 点伤害（${skillDefenseInfo.join('，')}）`);
         } else {
           this.addCombatLog(`敌人技能造成 ${skillDamageResult.hpDamage} 点伤害`);
         }
@@ -691,8 +853,8 @@ class CombatSystem {
         console.warn('[CombatSystem] 未知的敌人意图类型:', intent.type);
         // 默认攻击
         const defaultDamage = this.calculateDamage(10, this.combatState.enemy, this.combatState.player);
-        this.combatState.player.hp = Math.max(0, this.combatState.player.hp - defaultDamage);
-        this.addCombatLog(`敌人造成 ${defaultDamage} 点伤害（默认）`);
+        this.combatState.player.hp = Math.max(0, this.combatState.player.hp - defaultDamage.hpDamage);
+        this.addCombatLog(`敌人造成 ${defaultDamage.hpDamage} 点伤害（默认）`);
     }
   }
 
@@ -792,6 +954,18 @@ class CombatSystem {
   }
 
   /**
+   * 辅助方法：清零格挡
+   * @param {Object} fighter - 战斗者对象
+   */
+  clearBlock(fighter) {
+    if (!fighter || typeof fighter.block !== 'number') return;
+    if (fighter.block > 0) {
+      this.addCombatLog(`${fighter.name || '目标'} 的格挡已清零（剩余 ${fighter.block}）`);
+    }
+    fighter.block = 0;
+  }
+
+  /**
    * 辅助方法：添加战斗日志
    * @param {string} message - 日志消息
    */
@@ -817,6 +991,76 @@ class CombatSystem {
    */
   getCombatLog() {
     return this.combatLog;
+  }
+
+  /**
+   * 触发遗物效果（内部方法）
+   * @param {string} timing - 触发时机
+   * @param {Object} extraContext - 额外的上下文信息
+   * @private
+   */
+  _triggerRelicEffects(timing, extraContext = {}) {
+    if (!this.relicManager || !this.combatState) {
+      return;
+    }
+
+    // 构建完整的上下文对象
+    const context = {
+      player: this.combatState.player,
+      enemy: this.combatState.enemy,
+      combatState: this.combatState,
+      cardManager: this.cardManager,
+      gameState: this.gameState,
+      turn: this.combatState.turn,
+      ...extraContext
+    };
+
+    // 触发遗物效果
+    const results = this.relicManager.triggerEffects(timing, context);
+
+    // 记录遗物效果到战斗日志
+    if (results && results.length > 0) {
+      results.forEach(result => {
+        if (result.effect && result.effect.applied !== undefined) {
+          this.addCombatLog(`遗物「${result.relicName}」触发效果`);
+        }
+      });
+    }
+  }
+
+  /**
+   * 敌人死亡时的处理（内部方法）
+   * 触发 ON_ENEMY_DEATH 遗物效果
+   * @private
+   */
+  _onEnemyDeath() {
+    if (!this.combatState || !this.relicManager) {
+      return;
+    }
+
+    // 构建完整的上下文对象
+    const context = {
+      player: this.combatState.player,
+      enemy: this.combatState.enemy,
+      combatState: this.combatState,
+      cardManager: this.cardManager,
+      gameState: this.gameState,
+      turn: this.combatState.turn
+    };
+
+    // 触发敌人死亡遗物效果
+    const results = this.relicManager.triggerEffects(TRIGGER_TIMING.ON_ENEMY_DEATH, context);
+
+    // 记录遗物效果到战斗日志
+    if (results && results.length > 0) {
+      results.forEach(result => {
+        if (result.effect && result.effect.applied !== undefined) {
+          this.addCombatLog(`遗物「${result.relicName}」触发效果：击杀回复`);
+        }
+      });
+    }
+
+    this.addCombatLog(`敌人 ${this.combatState.enemy.name} 被击败！`);
   }
 }
 
